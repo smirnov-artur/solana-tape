@@ -273,9 +273,11 @@ function drawTrace(canvas, opts) {
   });
   if (hero && t && t.length === n) {
     g.textBaseline = 'top';
-    for (let k = 0; k <= vLines; k += 2) {
-      const i = Math.min(n - 1, Math.round((k / vLines) * (n - 1)));
-      g.textAlign = k === 0 ? 'left' : k === vLines ? 'right' : 'center';
+    // as many stamps as fit without touching, never fewer than the two ends
+    const fit = Math.max(2, Math.min(vLines / 2 + 1, Math.floor(w / 78)));
+    for (let k = 0; k < fit; k++) {
+      const i = Math.min(n - 1, Math.round((k / (fit - 1)) * (n - 1)));
+      g.textAlign = k === 0 ? 'left' : k === fit - 1 ? 'right' : 'center';
       g.fillText(clock(t[i]), X(i), padT + h + 7);
     }
   }
