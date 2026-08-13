@@ -1,0 +1,28 @@
+{
+  "_comment": "Single source of truth for the schedule and the anomaly detector. After changing collect_interval_minutes run: python scripts/schedule.py --write",
+  "collect_interval_minutes": 30,
+
+  "rpc_endpoints": [
+    "https://api.mainnet-beta.solana.com",
+    "https://solana-rpc.publicnode.com"
+  ],
+
+  "anomaly": {
+    "window": 24,
+    "z_threshold": 3.0,
+    "min_points": 8,
+    "min_relative_sd": 0.0005
+  },
+
+  "history": {
+    "keep_days": 400,
+    "series_points": 288,
+    "external_days": 90
+  },
+
+  "performance_samples": 720,
+  "block_production_slots": 3000,
+  "top_validators": 12,
+  "request_timeout_seconds": 45,
+  "retries": 3
+}

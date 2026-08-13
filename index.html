@@ -1,0 +1,217 @@
+<!-- vau-stranitsa · силуэт: приборный отчёт-лента · предмет: бумажная лента самописца · система: детектор аномалий с настраиваемым порогом · техника: canvas 2D, OKLCH light-dark(), container queries -->
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Solana Tape — public network telemetry</title>
+<meta name="description" content="Solana network health, validators, economy and growth, drawn from public read-only endpoints. Every number carries its source and the moment it was captured.">
+<meta name="color-scheme" content="light dark">
+<link rel="preload" href="assets/fonts/plexmono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="data/latest.json" as="fetch" crossorigin>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Cpath d='M1 11 L4 11 L5.5 5 L7 13 L8.5 8 L10 10 L15 10' stroke='%23f2efe6' stroke-width='1.2' fill='none'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<a class="skip" href="#tape">Skip to the tape</a>
+
+<header class="masthead">
+  <div class="masthead__id">
+    <h1 class="wordmark">Solana&nbsp;Tape</h1>
+    <p class="masthead__sub">Network telemetry on paper. Public read-only endpoints only —
+      no wallet, no keys, nothing sent.</p>
+  </div>
+  <div class="masthead__state">
+    <p class="pen" id="pen-state" data-state="unknown">
+      <span class="pen__dot" aria-hidden="true"></span>
+      <span class="pen__text" id="pen-text">reading tape…</span>
+    </p>
+    <p class="stamp" id="capture-stamp">captured&nbsp;<span class="mono" id="capture-ago">—</span></p>
+    <div class="theme" role="group" aria-label="Colour scheme">
+      <button type="button" data-theme-set="light" aria-pressed="false">Paper</button>
+      <button type="button" data-theme-set="auto" aria-pressed="true">Auto</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Night</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ── 1. the tape ─────────────────────────────────────────────────────── -->
+<section class="tape" id="tape" aria-labelledby="tape-h">
+  <div class="tape__head">
+    <h2 id="tape-h" class="section-h">The tape</h2>
+    <div class="tape__controls">
+      <div class="seg" role="group" aria-label="Series on the tape">
+        <button type="button" data-series="network_tps" aria-pressed="true">Transactions</button>
+        <button type="button" data-series="network_non_vote_tps" aria-pressed="false">Non-vote</button>
+        <button type="button" data-series="network_slot_time" aria-pressed="false">Slot time</button>
+      </div>
+      <label class="slider">
+        <span class="slider__label">Outlier threshold</span>
+        <input type="range" id="z-input" min="1.5" max="5" step="0.1" value="3">
+        <output class="mono" id="z-out">3.0 σ</output>
+      </label>
+    </div>
+  </div>
+
+  <figure class="chart chart--hero">
+    <canvas id="hero-canvas" role="img"
+            aria-label="Strip chart of Solana transactions per second"></canvas>
+    <figcaption class="chart__caption">
+      <span id="hero-meta">—</span>
+      <button type="button" class="src" data-src-for="hero">source</button>
+    </figcaption>
+    <div class="crosshair" id="hero-read" hidden>
+      <span class="crosshair__v mono" id="hero-read-v"></span>
+      <span class="crosshair__t mono" id="hero-read-t"></span>
+    </div>
+  </figure>
+
+  <div class="readouts" id="hero-readouts"></div>
+</section>
+
+<!-- ── 2. epoch ────────────────────────────────────────────────────────── -->
+<section class="epoch" aria-labelledby="epoch-h">
+  <h2 id="epoch-h" class="section-h">Epoch <span class="mono" id="epoch-no">—</span></h2>
+  <div class="epoch__bar" id="epoch-bar" role="img" aria-label="Epoch progress">
+    <div class="epoch__measured" id="epoch-measured"></div>
+    <div class="epoch__projected" id="epoch-projected"></div>
+    <div class="epoch__pen" id="epoch-pen" aria-hidden="true"></div>
+  </div>
+  <dl class="epoch__facts" id="epoch-facts"></dl>
+</section>
+
+<!-- ── 3. anomalies ────────────────────────────────────────────────────── -->
+<section class="log" aria-labelledby="log-h">
+  <div class="log__head">
+    <h2 id="log-h" class="section-h">Margin notes</h2>
+    <p class="lede">Every series is judged against its own rolling mean and standard deviation.
+      The window ends before the point being judged, so a spike cannot widen the band meant to
+      catch it. Move the threshold above and this log rewrites itself.</p>
+  </div>
+  <ol class="log__list" id="anomaly-list"></ol>
+</section>
+
+<!-- ── 4. network ──────────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="net-h">
+  <h2 id="net-h" class="section-h">Network</h2>
+  <div class="tiles" id="net-tiles"></div>
+  <div class="panels" id="net-panels"></div>
+</section>
+
+<!-- ── 5. validators ───────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="val-h">
+  <h2 id="val-h" class="section-h">Validators</h2>
+  <div class="tiles" id="val-tiles"></div>
+
+  <div class="val-grid">
+    <figure class="card card--field">
+      <figcaption class="card__h">Every active validator, one mark each</figcaption>
+      <div class="field" id="validator-field" role="img"></div>
+      <p class="card__note" id="field-note">—</p>
+    </figure>
+
+    <figure class="card">
+      <figcaption class="card__h">Stake concentration</figcaption>
+      <canvas id="lorenz-canvas" role="img"
+              aria-label="Cumulative share of stake against share of validators"></canvas>
+      <p class="card__note">Cumulative stake against validators, ranked. The straight line is
+        equal stake for everyone; the further the curve bows away from it, the fewer hands hold
+        the chain.</p>
+    </figure>
+  </div>
+
+  <div class="val-grid">
+    <figure class="card">
+      <figcaption class="card__h">Largest twelve by active stake</figcaption>
+      <div class="scroller">
+        <table class="table" id="validator-table">
+          <thead><tr>
+            <th scope="col">#</th><th scope="col">Validator</th>
+            <th scope="col" class="num">Stake, SOL</th>
+            <th scope="col" class="num">Share</th>
+            <th scope="col" class="num">Fee</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </figure>
+    <figure class="card">
+      <figcaption class="card__h">Commission charged</figcaption>
+      <div class="bars" id="commission-bars"></div>
+      <p class="card__note">Validators counted by the commission they take from staking rewards.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ── 6. economy ──────────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="eco-h">
+  <h2 id="eco-h" class="section-h">Economy</h2>
+  <div class="tiles" id="eco-tiles"></div>
+  <div class="panels" id="eco-panels"></div>
+</section>
+
+<!-- ── 7. growth ───────────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="grow-h">
+  <h2 id="grow-h" class="section-h">Growth</h2>
+  <div class="tiles" id="grow-tiles"></div>
+  <div class="gaps" id="gaps"></div>
+</section>
+
+<!-- ── 8. upgrades ─────────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="up-h">
+  <h2 id="up-h" class="section-h">What is coming</h2>
+  <div class="val-grid">
+    <figure class="card">
+      <figcaption class="card__h">Client releases</figcaption>
+      <ol class="releases" id="releases"></ol>
+    </figure>
+    <figure class="card">
+      <figcaption class="card__h">Improvement documents in review</figcaption>
+      <ol class="releases" id="simd"></ol>
+    </figure>
+  </div>
+  <figure class="card">
+    <figcaption class="card__h">Stake by client version</figcaption>
+    <div class="versions" id="versions"></div>
+    <p class="card__note">Stake is read from the RPC node. Version strings come from a public
+      validator directory, because a node does not report what software its peers run.</p>
+  </figure>
+</section>
+
+<!-- ── 9. sources ──────────────────────────────────────────────────────── -->
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h" class="section-h">Where every number comes from</h2>
+  <p class="lede">Nothing here is estimated quietly. A value that a source did not return is
+    printed as a gap with the reason, and a value that is derived rather than read says so.</p>
+  <div class="scroller">
+    <table class="table table--sources" id="source-table">
+      <thead><tr>
+        <th scope="col">Metric</th><th scope="col">Reading</th>
+        <th scope="col">Source</th><th scope="col">Endpoint</th><th scope="col">Captured</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <p>Built for the Superteam Canada analytics bounty. Read-only: the page fetches one JSON file
+    from this repository and nothing else. No trackers, no CDN, no external fonts.</p>
+  <p class="mono" id="run-line">—</p>
+  <p><a href="https://github.com/smirnov-artur/solana-tape">Source and collector on GitHub</a></p>
+</footer>
+
+<div class="popover" id="src-popover" hidden></div>
+<noscript><p class="noscript">This page draws its charts in the browser from
+  <a href="data/latest.json">data/latest.json</a>. That file is plain JSON and readable
+  directly.</p></noscript>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

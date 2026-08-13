@@ -1,0 +1,58 @@
+name: collect
+
+# The interval lives in config.json (collect_interval_minutes).
+# After changing it run `python scripts/schedule.py --write`; the check job
+# below fails the build if the two ever drift apart.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'config.json'
+      - '.github/workflows/collect.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Schedule matches config
+        run: python scripts/schedule.py
+
+      - name: Collect
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/collect.py
+
+      - name: Commit data
+        run: |
+          git config user.name  'solana-tape bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data
+          if git diff --staged --quiet; then
+            echo 'nothing changed'
+            exit 0
+          fi
+          git commit -m "data: $(date -u '+%Y-%m-%d %H:%M') UTC"
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin main && exit 0
+            sleep 5
+          done
+          exit 1
