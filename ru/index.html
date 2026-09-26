@@ -1,0 +1,232 @@
+<!-- vau-stranitsa · силуэт: приборный отчёт-лента · предмет: бумажная лента самописца · система: детектор аномалий с настраиваемым порогом · техника: canvas 2D, OKLCH light-dark(), container queries -->
+<!DOCTYPE html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<script src="/works/js/gad-loader.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Solana Tape — публичная телеметрия сети</title>
+<meta name="description" content="Здоровье сети Solana, валидаторы, экономика и рост — по данным публичных read-only эндпоинтов. У каждого числа есть источник и момент, когда его сняли.">
+<meta name="color-scheme" content="light dark">
+<link rel="preload" href="../assets/fonts/plexmono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../assets/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../data/latest.json" as="fetch" crossorigin>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Cpath d='M1 11 L4 11 L5.5 5 L7 13 L8.5 8 L10 10 L15 10' stroke='%23f2efe6' stroke-width='1.2' fill='none'/%3E%3C/svg%3E">
+<style>
+  .gad-mark { position: fixed; top: 16px; right: 16px; z-index: 45; display: inline-flex; color: var(--ink-42); font-size: 18px; opacity: 0.85; transition: color 0.2s, opacity 0.2s; }
+  .gad-mark:hover { color: var(--signal); opacity: 1; }
+  .gad-logo{display:inline-block;height:1em;width:auto;overflow:visible;vertical-align:middle}
+  .gad-logo .ring{animation:gad-draw 1.1s cubic-bezier(.65,0,.35,1) .35s forwards}
+  .gad-logo .orb{opacity:0;transform-box:view-box;transform-origin:322px 30px;animation:gad-pop .3s ease 1.35s forwards,gad-orbit 7s linear 1.35s infinite}
+  @keyframes gad-draw{to{stroke-dashoffset:0}}
+  @keyframes gad-pop{to{opacity:1}}
+  @keyframes gad-orbit{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.gad-logo .ring{animation:none;stroke-dashoffset:0}.gad-logo .orb{animation:none;opacity:1}}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#tape">Перейти к ленте</a>
+<a class="gad-mark" href="https://smirnov-artur.github.io/works/" aria-label="g.a.d."><svg class="gad-logo" viewBox="0 0 355 110" role="img" aria-label="g.a.d."><path fill="currentColor" d="M53.7 66.8V57.9L54.3 55.8V43.7L53.7 41.7V27.6H70.8V66Q70.8 75.8 66.4 82.6Q61.9 89.5 54 93.1Q46.1 96.7 35.6 96.7Q28.3 96.7 22.2 94.8Q16.1 92.9 10.1 89.1V76Q15.7 80.3 21.9 82.2Q28.1 84 34.5 84Q43.8 84 48.7 79.9Q53.7 75.7 53.7 66.8ZM30.5 74.8Q23.2 74.8 17.4 71.8Q11.6 68.8 8.3 63.3Q4.9 57.8 4.9 50.5Q4.9 43.1 8.3 37.6Q11.6 32.2 17.4 29.1Q23.2 26.1 30.5 26.1Q36 26.1 40.6 27.8Q45.2 29.5 48.8 32.3Q52.4 35 54.9 38.3Q57.4 41.5 58.7 44.8Q60 48.1 60 50.7Q60 54.1 57.9 58.2Q55.9 62.4 52.1 66.2Q48.3 70 42.8 72.4Q37.4 74.8 30.5 74.8ZM36.2 63Q41.9 63 46.4 59.9Q50.9 56.9 54.3 50.5Q50.9 43.9 46.4 40.9Q41.8 37.9 36.2 37.9Q31.9 37.9 28.7 39.4Q25.6 41 23.9 43.8Q22.1 46.6 22.1 50.5Q22.1 54.2 23.8 57Q25.5 59.9 28.6 61.4Q31.8 63 36.2 63Z M84.7 80.9Q81.9 80.9 79.6 79.6Q77.4 78.3 76.1 76Q74.8 73.8 74.8 71.1Q74.8 68.3 76.1 66.1Q77.4 63.9 79.6 62.6Q81.9 61.2 84.7 61.2Q87.4 61.2 89.6 62.6Q91.8 63.9 93.2 66.1Q94.5 68.3 94.5 71.1Q94.5 73.8 93.2 76Q91.8 78.3 89.6 79.6Q87.4 80.9 84.7 80.9Z M146.4 80 144.1 61 146.6 53.8 144.1 46.7 146.4 27.6H164.2L161 53.8L164.2 80ZM150.7 53.8Q149.3 62.2 145.4 68.4Q141.6 74.6 135.7 78Q129.8 81.5 122.4 81.5Q114.7 81.5 108.9 78Q103 74.5 99.7 68.3Q96.4 62.1 96.4 53.8Q96.4 45.5 99.7 39.3Q103 33.1 108.9 29.6Q114.7 26.1 122.4 26.1Q129.8 26.1 135.7 29.5Q141.6 33 145.5 39.2Q149.4 45.3 150.7 53.8ZM113.7 53.8Q113.7 58 115.4 61.3Q117.2 64.5 120.3 66.4Q123.3 68.3 127.4 68.3Q131.4 68.3 135.1 66.4Q138.7 64.5 141.5 61.3Q144.2 58 145.6 53.8Q144.2 49.5 141.5 46.3Q138.7 43 135.1 41.1Q131.4 39.2 127.4 39.2Q123.3 39.2 120.3 41.1Q117.2 43 115.4 46.3Q113.7 49.5 113.7 53.8Z M176.9 80.9Q174.2 80.9 171.9 79.6Q169.7 78.3 168.4 76Q167.1 73.8 167.1 71.1Q167.1 68.3 168.4 66.1Q169.7 63.9 171.9 62.6Q174.2 61.2 176.9 61.2Q179.7 61.2 181.9 62.6Q184.1 63.9 185.4 66.1Q186.8 68.3 186.8 71.1Q186.8 73.8 185.4 76Q184.1 78.3 181.9 79.6Q179.7 80.9 176.9 80.9Z M239 80 236.7 60.2 239.8 54 236.8 46.1 241 9.2H258.8L253.5 52.5L256.7 80ZM242.9 53.8Q241.6 62.2 237.7 68.4Q233.8 74.6 228 78Q222.1 81.5 214.7 81.5Q207 81.5 201.1 78Q195.3 74.5 192 68.3Q188.7 62.1 188.7 53.8Q188.7 45.5 192 39.3Q195.3 33.1 201.1 29.6Q207 26.1 214.7 26.1Q222.1 26.1 228 29.5Q233.8 33 237.8 39.2Q241.7 45.3 242.9 53.8ZM206 53.8Q206 58 207.7 61.3Q209.5 64.5 212.5 66.4Q215.6 68.3 219.7 68.3Q223.7 68.3 227.4 66.4Q231 64.5 233.7 61.3Q236.5 58 237.9 53.8Q236.5 49.5 233.7 46.3Q231 43 227.4 41.1Q223.7 39.2 219.7 39.2Q215.6 39.2 212.5 41.1Q209.5 43 207.7 46.3Q206 49.5 206 53.8Z M269.4 80.9Q266.6 80.9 264.4 79.6Q262.1 78.3 260.8 76Q259.6 73.8 259.6 71.1Q259.6 68.3 260.8 66.1Q262.1 63.9 264.4 62.6Q266.6 61.2 269.4 61.2Q272.2 61.2 274.4 62.6Q276.6 63.9 277.9 66.1Q279.2 68.3 279.2 71.1Q279.2 73.8 277.9 76Q276.6 78.3 274.4 79.6Q272.2 80.9 269.4 80.9Z"/><circle class="ring" cx="322" cy="30" r="22" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" transform="rotate(-90 322 30)" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/><circle class="orb" cx="322" cy="8" r="5" fill="currentColor"/></svg></a>
+
+<header class="masthead">
+  <div class="masthead__id">
+    <h1 class="wordmark">Solana&nbsp;Tape</h1>
+    <p class="masthead__sub">Телеметрия сети на бумаге. Только публичные read-only эндпоинты —
+      ни кошелька, ни ключей, ничего не отправляется.</p>
+  </div>
+  <div class="masthead__state">
+    <p class="pen" id="pen-state" data-state="unknown">
+      <span class="pen__dot" aria-hidden="true"></span>
+      <span class="pen__text" id="pen-text">читаем ленту…</span>
+    </p>
+    <p class="stamp" id="capture-stamp">снято&nbsp;<span class="mono" id="capture-ago">—</span></p>
+    <div class="theme" role="group" aria-label="Цветовая схема">
+      <button type="button" data-theme-set="light" aria-pressed="false">Бумага</button>
+      <button type="button" data-theme-set="auto" aria-pressed="true">Авто</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Ночь</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ── 1. лента ────────────────────────────────────────────────────────── -->
+<section class="tape" id="tape" aria-labelledby="tape-h">
+  <div class="tape__head">
+    <h2 id="tape-h" class="section-h">Лента</h2>
+    <div class="tape__controls">
+      <div class="seg" role="group" aria-label="Ряды на ленте">
+        <button type="button" data-series="network_tps" aria-pressed="true">Транзакции</button>
+        <button type="button" data-series="network_non_vote_tps" aria-pressed="false">Без голосований</button>
+        <button type="button" data-series="network_slot_time" aria-pressed="false">Время слота</button>
+      </div>
+      <label class="slider">
+        <span class="slider__label">Порог аномалии</span>
+        <input type="range" id="z-input" min="1.5" max="5" step="0.1" value="3">
+        <output class="mono" id="z-out">3.0 σ</output>
+      </label>
+    </div>
+  </div>
+
+  <figure class="chart chart--hero">
+    <canvas id="hero-canvas" role="img"
+            aria-label="Ленточный график транзакций Solana в секунду"></canvas>
+    <figcaption class="chart__caption">
+      <span id="hero-meta">—</span>
+      <button type="button" class="src" data-src-for="hero">источник</button>
+    </figcaption>
+    <div class="crosshair" id="hero-read" hidden>
+      <span class="crosshair__v mono" id="hero-read-v"></span>
+      <span class="crosshair__t mono" id="hero-read-t"></span>
+    </div>
+  </figure>
+
+  <div class="readouts" id="hero-readouts"></div>
+</section>
+
+<!-- ── 2. эпоха ────────────────────────────────────────────────────────── -->
+<section class="epoch" aria-labelledby="epoch-h">
+  <h2 id="epoch-h" class="section-h">Эпоха <span class="mono" id="epoch-no">—</span></h2>
+  <div class="epoch__bar" id="epoch-bar" role="img" aria-label="Прогресс эпохи">
+    <div class="epoch__measured" id="epoch-measured"></div>
+    <div class="epoch__projected" id="epoch-projected"></div>
+    <div class="epoch__pen" id="epoch-pen" aria-hidden="true"></div>
+  </div>
+  <dl class="epoch__facts" id="epoch-facts"></dl>
+</section>
+
+<!-- ── 3. аномалии ─────────────────────────────────────────────────────── -->
+<section class="log" aria-labelledby="log-h">
+  <div class="log__head">
+    <h2 id="log-h" class="section-h">Заметки на полях</h2>
+    <p class="lede">Каждый ряд оценивается по собственной скользящей средней и стандартному
+      отклонению. Окно заканчивается до оцениваемой точки, поэтому всплеск не может расширить
+      полосу, которая должна его поймать. Подвиньте порог выше — и этот журнал перепишет себя.</p>
+  </div>
+  <ol class="log__list" id="anomaly-list"></ol>
+</section>
+
+<!-- ── 4. сеть ─────────────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="net-h">
+  <h2 id="net-h" class="section-h">Сеть</h2>
+  <div class="tiles" id="net-tiles"></div>
+  <div class="panels" id="net-panels"></div>
+</section>
+
+<!-- ── 5. валидаторы ───────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="val-h">
+  <h2 id="val-h" class="section-h">Валидаторы</h2>
+  <div class="tiles" id="val-tiles"></div>
+
+  <div class="val-grid">
+    <figure class="card card--field">
+      <figcaption class="card__h">Каждый активный валидатор — одна отметка</figcaption>
+      <div class="field" id="validator-field" role="img"></div>
+      <p class="card__note" id="field-note">—</p>
+    </figure>
+
+    <figure class="card">
+      <figcaption class="card__h">Концентрация стейка</figcaption>
+      <canvas id="lorenz-canvas" role="img"
+              aria-label="Накопленная доля стейка против доли валидаторов"></canvas>
+      <p class="card__note">Накопленный стейк против валидаторов, по рангу. Прямая линия —
+        равный стейк для всех; чем сильнее кривая от неё отклоняется, тем в меньшем числе рук
+        сосредоточена сеть.</p>
+    </figure>
+  </div>
+
+  <div class="val-grid">
+    <figure class="card">
+      <figcaption class="card__h">Двенадцать крупнейших по активному стейку</figcaption>
+      <div class="scroller">
+        <table class="table" id="validator-table">
+          <thead><tr>
+            <th scope="col">#</th><th scope="col">Валидатор</th>
+            <th scope="col" class="num">Стейк, SOL</th>
+            <th scope="col" class="num">Доля</th>
+            <th scope="col" class="num">Комиссия</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </figure>
+    <figure class="card">
+      <figcaption class="card__h">Взимаемая комиссия</figcaption>
+      <div class="bars" id="commission-bars"></div>
+      <p class="card__note">Валидаторы, посчитанные по комиссии, которую они берут с наград за
+        стейкинг.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ── 6. экономика ────────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="eco-h">
+  <h2 id="eco-h" class="section-h">Экономика</h2>
+  <div class="tiles" id="eco-tiles"></div>
+  <div class="panels" id="eco-panels"></div>
+</section>
+
+<!-- ── 7. рост ─────────────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="grow-h">
+  <h2 id="grow-h" class="section-h">Рост</h2>
+  <div class="tiles" id="grow-tiles"></div>
+  <div class="gaps" id="gaps"></div>
+</section>
+
+<!-- ── 8. обновления ───────────────────────────────────────────────────── -->
+<section class="panel-set" aria-labelledby="up-h">
+  <h2 id="up-h" class="section-h">Что впереди</h2>
+  <div class="val-grid">
+    <figure class="card">
+      <figcaption class="card__h">Релизы клиента</figcaption>
+      <ol class="releases" id="releases"></ol>
+    </figure>
+    <figure class="card">
+      <figcaption class="card__h">Предложения по улучшению на рассмотрении</figcaption>
+      <ol class="releases" id="simd"></ol>
+    </figure>
+  </div>
+  <figure class="card">
+    <figcaption class="card__h">Стейк по версии клиента</figcaption>
+    <div class="versions" id="versions"></div>
+    <p class="card__note">Стейк считывается с RPC-ноды. Строки версий берутся из публичного
+      каталога валидаторов, потому что нода не сообщает, какое ПО запускают её соседи.</p>
+  </figure>
+</section>
+
+<!-- ── 9. источники ────────────────────────────────────────────────────── -->
+<section class="sources" aria-labelledby="src-h">
+  <h2 id="src-h" class="section-h">Откуда взято каждое число</h2>
+  <p class="lede">Здесь ничего не оценивается тихо. Значение, которое источник не вернул,
+    печатается как пробел с причиной, а значение, которое выведено, а не считано напрямую,
+    говорит об этом сам.</p>
+  <div class="scroller">
+    <table class="table table--sources" id="source-table">
+      <thead><tr>
+        <th scope="col">Метрика</th><th scope="col">Значение</th>
+        <th scope="col">Источник</th><th scope="col">Конечная точка</th><th scope="col">Снято</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <p>Сделано для аналитического баунти Superteam Canada. Только чтение: страница загружает один
+    JSON-файл из этого репозитория и больше ничего. Без трекеров, без CDN, без внешних шрифтов.</p>
+  <p class="mono" id="run-line">—</p>
+  <p><a href="https://github.com/smirnov-artur/solana-tape">Исходники и сборщик на GitHub</a></p>
+</footer>
+
+<div class="popover" id="src-popover" hidden></div>
+<noscript><p class="noscript">Эта страница рисует графики в браузере на основе
+  <a href="../data/latest.json">data/latest.json</a>. Это обычный JSON, его можно прочитать
+  прямо так.</p></noscript>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

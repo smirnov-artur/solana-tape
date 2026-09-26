@@ -570,6 +570,8 @@ section:last-of-type { border-bottom: 0; }
   .readouts { grid-template-columns: 1fr 1fr; }
   .field { gap: 2px; }
   .field i { width: 6px; height: 6px; }
+  .seg { flex-wrap: wrap; }
+  .seg button { flex: 1 1 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
